@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UniAdmin - University Management System</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome 6.4.0 (نفس إصدار UniMate لضمان شكل الأيقونة المطابق) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- SheetJS for Excel parsing -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .nav-btn {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        .nav-btn::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+        .nav-btn:hover::before {
+            width: 80%;
+        }
+        .nav-btn.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        .dark .nav-btn.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+        body {
+            transition: background-color 0.3s ease;
+        }
+        .upload-card {
+            transition: all 0.3s ease;
+        }
+        .upload-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+        }
+        .dropzone {
+            transition: all 0.2s;
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.04);
+        }
+        .toast {
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .file-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .dark .file-row {
+            border-bottom-color: #1e293b;
+        }
+        .file-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #0f172a;
+        }
+        .dark .file-name {
+            color: #f1f5f9;
+        }
+        .file-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .date-gray {
+            font-size: 0.8rem;
+            color: #64748b;
+            direction: ltr;
+        }
+        .dark .date-gray {
+            color: #94a3b8;
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #ef4444;
+            transition: all 0.2s;
+            padding: 6px 10px;
+            border-radius: 8px;
+        }
+        .delete-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            transform: scale(1.05);
+        }
+        .refresh-icon {
+            transition: transform 0.3s ease;
+        }
+        .refresh-icon:hover {
+            transform: rotate(180deg);
+        }
+        .stat-card {
+            transition: all 0.2s ease;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+        .clean-select {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.875rem;
+            color: #1e293b;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .clean-select:focus {
+            border-color: #3b82f6;
+            ring: 2px solid rgba(59, 130, 246, 0.2);
+        }
+        .dark .clean-select {
+            background-color: #1e293b;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+        .dark .clean-select:focus {
+            border-color: #3b82f6;
+        }
+        .section-card {
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 font-sans antialiased">
+
+    <nav class="fixed top-0 left-0 right-0 z-[100] backdrop-blur-lg bg-white/85 dark:bg-slate-950/85 border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <!-- Logo - مطابق تماماً للوغو UniMate (نفس الأيقونة ونفس الخلفية ونفس الحجم) -->
+            <a href="#" class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+                    <i class="fa-solid fa-graduation-cap text-base"></i>
+                </div>
+                <span class="text-xl font-bold text-slate-900 dark:text-white">UniAdmin</span>
+            </a>
+            
+            <div class="hidden md:flex items-center gap-1">
+                <button data-nav="dashboard" class="nav-btn active px-4 py-2 text-sm font-medium rounded-lg transition-all bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <i class="fa-solid fa-chart-line mr-2"></i> Dashboard
+                </button>
+                <button data-nav="timetable" class="nav-btn px-4 py-2 text-sm font-medium rounded-lg transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-calendar-alt mr-2"></i> Timetable
+                </button>
+                <button data-nav="students" class="nav-btn px-4 py-2 text-sm font-medium rounded-lg transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-users mr-2"></i> Students
+                </button>
+                <button data-nav="marks" class="nav-btn px-4 py-2 text-sm font-medium rounded-lg transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-chart-simple mr-2"></i> Marks
+                </button>
+                <button data-nav="certificates" class="nav-btn px-4 py-2 text-sm font-medium rounded-lg transition-all text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <i class="fa-solid fa-certificate mr-2"></i> Certificates
+                </button>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button id="theme-toggle" class="w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-center">
+                    <i id="theme-icon" class="fa-solid fa-moon text-slate-500 dark:text-amber-400"></i>
+                </button>
+                <div class="h-5 w-px bg-slate-200 dark:bg-slate-800"></div>
+                <button id="logout-btn" class="px-5 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[12px] font-bold rounded-lg uppercase tracking-wider hover:opacity-90 transition-opacity whitespace-nowrap">
+                    LOG OUT
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="pt-24 pb-12">
+        <div class="max-w-7xl mx-auto px-6">
+            
+            <!-- ==================== DASHBOARD ==================== -->
+            <div id="dashboard-content" class="fade-in">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Dashboard</h1>
+                    <p class="text-slate-500 dark:text-slate-400 mt-1">Upload and manage university files</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Upload Schedule -->
+                    <div class="upload-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                                <i class="fa-solid fa-calendar-alt text-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Upload Schedule</h2>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Excel files for class schedules</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Level</label>
+                                    <select id="planning-level" class="clean-select w-full">
+                                        <option value="L1">L1</option>
+                                        <option value="L2">L2</option>
+                                        <option value="L3">L3</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Group</label>
+                                    <select id="planning-group" class="clean-select w-full">
+                                        <option value="G1">G1</option>
+                                        <option value="G2">G2</option>
+                                        <option value="G3">G3</option>
+                                        <option value="G4">G4</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="planning-dropzone" class="dropzone border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 text-center cursor-pointer relative">
+                                <input type="file" accept=".xlsx,.xls" id="planning-file" class="absolute inset-0 opacity-0 cursor-pointer">
+                                <i class="fa-solid fa-cloud-upload-alt text-3xl text-slate-400 mb-2"></i>
+                                <p class="text-sm text-slate-500 dark:text-slate-400"><strong class="text-blue-600 dark:text-blue-400">Choose Excel file</strong><br>.xlsx or .xls only</p>
+                            </div>
+                            <div id="planning-file-info" class="hidden flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                                <i class="fa-solid fa-check-circle"></i>
+                                <span id="planning-file-name"></span>
+                            </div>
+                            <button id="planning-btn" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-upload mr-2"></i> Upload Schedule
+                            </button>
+                            <div id="planning-progress" class="hidden">
+                                <div class="h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div id="planning-fill" class="h-full bg-blue-600 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                                <p id="planning-progress-text" class="text-xs text-slate-500 dark:text-slate-400 text-center mt-1">Uploading...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Grades -->
+                    <div class="upload-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                                <i class="fa-solid fa-chart-line text-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Upload Grades</h2>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Excel files for student grades</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Level</label>
+                                    <select id="notes-level" class="clean-select w-full">
+                                        <option value="L1">L1</option>
+                                        <option value="L2">L2</option>
+                                        <option value="L3">L3</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Group</label>
+                                    <select id="notes-group" class="clean-select w-full">
+                                        <option value="G1">G1</option>
+                                        <option value="G2">G2</option>
+                                        <option value="G3">G3</option>
+                                        <option value="G4">G4</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="notes-dropzone" class="dropzone border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 text-center cursor-pointer relative">
+                                <input type="file" accept=".xlsx,.xls" id="notes-file" class="absolute inset-0 opacity-0 cursor-pointer">
+                                <i class="fa-solid fa-cloud-upload-alt text-3xl text-slate-400 mb-2"></i>
+                                <p class="text-sm text-slate-500 dark:text-slate-400"><strong class="text-emerald-600 dark:text-emerald-400">Choose Excel file</strong><br>.xlsx or .xls only</p>
+                            </div>
+                            <div id="notes-file-info" class="hidden flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                                <i class="fa-solid fa-check-circle"></i>
+                                <span id="notes-file-name"></span>
+                            </div>
+                            <button id="notes-btn" disabled class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-upload mr-2"></i> Upload Grades
+                            </button>
+                            <div id="notes-progress" class="hidden">
+                                <div class="h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div id="notes-fill" class="h-full bg-emerald-600 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                                <p id="notes-progress-text" class="text-xs text-slate-500 dark:text-slate-400 text-center mt-1">Uploading...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Certificates (PDF only) -->
+                    <div class="upload-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                                <i class="fa-solid fa-certificate text-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Upload Certificates</h2>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">PDF files for certificates</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Level</label>
+                                    <select id="certificates-level" class="clean-select w-full">
+                                        <option value="L1">L1</option>
+                                        <option value="L2">L2</option>
+                                        <option value="L3">L3</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Group</label>
+                                    <select id="certificates-group" class="clean-select w-full">
+                                        <option value="G1">G1</option>
+                                        <option value="G2">G2</option>
+                                        <option value="G3">G3</option>
+                                        <option value="G4">G4</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="certificates-dropzone" class="dropzone border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 text-center cursor-pointer relative">
+                                <input type="file" accept=".pdf" id="certificates-file" class="absolute inset-0 opacity-0 cursor-pointer">
+                                <i class="fa-solid fa-cloud-upload-alt text-3xl text-slate-400 mb-2"></i>
+                                <p class="text-sm text-slate-500 dark:text-slate-400"><strong class="text-purple-600 dark:text-purple-400">Choose PDF file</strong><br>.pdf only</p>
+                            </div>
+                            <div id="certificates-file-info" class="hidden flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                                <i class="fa-solid fa-check-circle"></i>
+                                <span id="certificates-file-name"></span>
+                            </div>
+                            <button id="certificates-btn" disabled class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-upload mr-2"></i> Upload Certificates
+                            </button>
+                            <div id="certificates-progress" class="hidden">
+                                <div class="h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div id="certificates-fill" class="h-full bg-purple-600 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                                <p id="certificates-progress-text" class="text-xs text-slate-500 dark:text-slate-400 text-center mt-1">Uploading...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Upload Students -->
+                    <div class="upload-card bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                                <i class="fa-solid fa-users text-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Upload Students</h2>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Excel files for students data</p>
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Level</label>
+                                    <select id="students-level" class="clean-select w-full">
+                                        <option value="L1">L1</option>
+                                        <option value="L2">L2</option>
+                                        <option value="L3">L3</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Group</label>
+                                    <select id="students-group" class="clean-select w-full">
+                                        <option value="G1">G1</option>
+                                        <option value="G2">G2</option>
+                                        <option value="G3">G3</option>
+                                        <option value="G4">G4</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="students-dropzone" class="dropzone border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-6 text-center cursor-pointer relative">
+                                <input type="file" accept=".xlsx,.xls" id="students-file" class="absolute inset-0 opacity-0 cursor-pointer">
+                                <i class="fa-solid fa-cloud-upload-alt text-3xl text-slate-400 mb-2"></i>
+                                <p class="text-sm text-slate-500 dark:text-slate-400"><strong class="text-amber-600 dark:text-amber-400">Choose Excel file</strong><br>.xlsx or .xls only</p>
+                            </div>
+                            <div id="students-file-info" class="hidden flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                                <i class="fa-solid fa-check-circle"></i>
+                                <span id="students-file-name"></span>
+                            </div>
+                            <button id="students-btn" disabled class="w-full bg-amber-600 hover:bg-amber-700 text-white py-2.5 rounded-lg font-medium text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-upload mr-2"></i> Upload Students
+                            </button>
+                            <div id="students-progress" class="hidden">
+                                <div class="h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div id="students-fill" class="h-full bg-amber-600 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                                <p id="students-progress-text" class="text-xs text-slate-500 dark:text-slate-400 text-center mt-1">Uploading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== TIMETABLE ==================== -->
+            <div id="timetable-content" class="hidden fade-in">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Timetable</h1>
+                    <p class="text-slate-500 dark:text-slate-400 mt-1">Manage class schedules and timetables</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                                <i class="fa-regular fa-copy text-blue-600 dark:text-blue-400 text-lg"></i>
+                            </div>
+                            <div><p class="text-2xl font-bold text-slate-900 dark:text-white" id="timetable-total">0</p><p class="text-xs text-slate-500 dark:text-slate-400">Total Files</p></div>
+                        </div>
+                    </div>
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                <i class="fa-regular fa-clock text-purple-600 dark:text-purple-400 text-lg"></i>
+                            </div>
+                            <div><p class="text-xl font-bold text-slate-900 dark:text-white" id="timetable-last">—</p><p class="text-xs text-slate-500 dark:text-slate-400">Last Upload</p></div>
+                        </div>
+                    </div>
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                                <i class="fa-solid fa-database text-emerald-600 dark:text-emerald-400 text-lg"></i>
+                            </div>
+                            <div><p class="text-2xl font-bold text-slate-900 dark:text-white" id="timetable-size">0</p><p class="text-xs text-slate-500 dark:text-slate-400">Total Size</p></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 mb-8">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-medium text-slate-600 dark:text-slate-400"><i class="fa-solid fa-filter ml-1"></i> Filter:</span>
+                            <select id="timetable-level-filter" class="clean-select">
+                                <option value="all">All Levels</option>
+                                <option value="L1">L1</option>
+                                <option value="L2">L2</option>
+                                <option value="L3">L3</option>
+                            </select>
+                            <select id="timetable-group-filter" class="clean-select">
+                                <option value="all">All Groups</option>
+                                <option value="G1">G1</option>
+                                <option value="G2">G2</option>
+                                <option value="G3">G3</option>
+                                <option value="G4">G4</option>
+                            </select>
+                        </div>
+                        <button id="timetable-refresh" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
+                            <i class="fa-solid fa-rotate-right refresh-icon"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+                        <h2 class="font-semibold text-slate-900 dark:text-white"><i class="fa-regular fa-folder-open mr-2"></i> Uploaded Files</h2>
+                    </div>
+                    <div id="timetable-files-list" class="divide-y divide-slate-200 dark:divide-slate-800">
+                        <div class="p-8 text-center text-slate-500 dark:text-slate-400"><i class="fa-regular fa-folder-open text-4xl mb-3 block"></i><p>No files found. Upload from Dashboard.</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== STUDENTS ==================== -->
+            <div id="students-content" class="hidden fade-in">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Students</h1>
+                    <p class="text-slate-500 dark:text-slate-400 mt-1">Manage student data files</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><i class="fa-regular fa-copy text-blue-600 dark:text-blue-400 text-lg"></i></div><div><p class="text-2xl font-bold text-slate-900 dark:text-white" id="students-total">0</p><p class="text-xs text-slate-500 dark:text-slate-400">Total Files</p></div></div>
+                    </div>
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center"><i class="fa-regular fa-clock text-purple-600 dark:text-purple-400 text-lg"></i></div><div><p class="text-xl font-bold text-slate-900 dark:text-white" id="students-last">—</p><p class="text-xs text-slate-500 dark:text-slate-400">Last Upload</p></div></div>
+                    </div>
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><i class="fa-solid fa-database text-emerald-600 dark:text-emerald-400 text-lg"></i></div><div><p class="text-2xl font-bold text-slate-900 dark:text-white" id="students-size">0</p><p class="text-xs text-slate-500 dark:text-slate-400">Total Size</p></div></div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 mb-8">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm font-medium text-slate-600 dark:text-slate-400"><i class="fa-solid fa-filter ml-1"></i> Filter:</span>
+                            <select id="students-level-filter" class="clean-select"><option value="all">All Levels</option><option value="L1">L1</option><option value="L2">L2</option><option value="L3">L3</option></select>
+                            <select id="students-group-filter" class="clean-select"><option value="all">All Groups</option><option value="G1">G1</option><option value="G2">G2</option><option value="G3">G3</option><option value="G4">G4</option></select>
+                        </div>
+                        <button id="students-refresh" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-rotate-right refresh-icon"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800"><h2 class="font-semibold text-slate-900 dark:text-white"><i class="fa-regular fa-folder-open mr-2"></i> Uploaded Files</h2></div>
+                    <div id="students-files-list" class="divide-y divide-slate-200 dark:divide-slate-800"><div class="p-8 text-center text-slate-500 dark:text-slate-400"><i class="fa-regular fa-folder-open text-4xl mb-3 block"></i><p>No files found. Upload from Dashboard.</p></div></div>
+                </div>
+            </div>
+
+            <!-- ==================== MARKS ==================== -->
+            <div id="marks-content" class="hidden fade-in">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Marks</h1>
+                    <p class="text-slate-500 dark:text-slate-400 mt-1">Manage grades files</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><i class="fa-regular fa-copy text-blue-600 dark:text-blue-400 text-lg"></i></div><div><p class="text-2xl font-bold text-slate-900 dark:text-white" id="marks-total">0</p><p class="text-xs text-slate-500 dark:text-slate-400">Total Files</p></div></div>
+                    </div>
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center"><i class="fa-regular fa-clock text-purple-600 dark:text-purple-400 text-lg"></i></div><div><p class="text-xl font-bold text-slate-900 dark:text-white" id="marks-last">—</p><p class="text-xs text-slate-500 dark:text-slate-400">Last Upload</p></div></div>
+                    </div>
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><i class="fa-solid fa-database text-emerald-600 dark:text-emerald-400 text-lg"></i></div><div><p class="text-2xl font-bold text-slate-900 dark:text-white" id="marks-size">0</p><p class="text-xs text-slate-500 dark:text-slate-400">Total Size</p></div></div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 mb-8">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3"><span class="text-sm font-medium text-slate-600 dark:text-slate-400"><i class="fa-solid fa-filter ml-1"></i> Filter:</span>
+                            <select id="marks-level-filter" class="clean-select"><option value="all">All Levels</option><option value="L1">L1</option><option value="L2">L2</option><option value="L3">L3</option></select>
+                            <select id="marks-group-filter" class="clean-select"><option value="all">All Groups</option><option value="G1">G1</option><option value="G2">G2</option><option value="G3">G3</option><option value="G4">G4</option></select>
+                        </div>
+                        <button id="marks-refresh" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-rotate-right refresh-icon"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800"><h2 class="font-semibold text-slate-900 dark:text-white"><i class="fa-regular fa-folder-open mr-2"></i> Uploaded Files</h2></div>
+                    <div id="marks-files-list" class="divide-y divide-slate-200 dark:divide-slate-800"><div class="p-8 text-center text-slate-500 dark:text-slate-400"><i class="fa-regular fa-folder-open text-4xl mb-3 block"></i><p>No files found. Upload from Dashboard.</p></div></div>
+                </div>
+            </div>
+
+            <!-- ==================== CERTIFICATES ==================== -->
+            <div id="certificates-content" class="hidden fade-in">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-slate-900 dark:text-white">Certificates</h1>
+                    <p class="text-slate-500 dark:text-slate-400 mt-1">Manage certificates files (PDF)</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center"><i class="fa-regular fa-copy text-blue-600 dark:text-blue-400 text-lg"></i></div><div><p class="text-2xl font-bold text-slate-900 dark:text-white" id="certificates-total">0</p><p class="text-xs text-slate-500 dark:text-slate-400">Total Files</p></div></div>
+                    </div>
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center"><i class="fa-regular fa-clock text-purple-600 dark:text-purple-400 text-lg"></i></div><div><p class="text-xl font-bold text-slate-900 dark:text-white" id="certificates-last">—</p><p class="text-xs text-slate-500 dark:text-slate-400">Last Upload</p></div></div>
+                    </div>
+                    <div class="stat-card bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><i class="fa-solid fa-database text-emerald-600 dark:text-emerald-400 text-lg"></i></div><div><p class="text-2xl font-bold text-slate-900 dark:text-white" id="certificates-size">0</p><p class="text-xs text-slate-500 dark:text-slate-400">Total Size</p></div></div>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 mb-8">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center gap-3"><span class="text-sm font-medium text-slate-600 dark:text-slate-400"><i class="fa-solid fa-filter ml-1"></i> Filter:</span>
+                            <select id="certificates-level-filter" class="clean-select"><option value="all">All Levels</option><option value="L1">L1</option><option value="L2">L2</option><option value="L3">L3</option></select>
+                            <select id="certificates-group-filter" class="clean-select"><option value="all">All Groups</option><option value="G1">G1</option><option value="G2">G2</option><option value="G3">G3</option><option value="G4">G4</option></select>
+                        </div>
+                        <button id="certificates-refresh" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"><i class="fa-solid fa-rotate-right refresh-icon"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800"><h2 class="font-semibold text-slate-900 dark:text-white"><i class="fa-regular fa-folder-open mr-2"></i> Uploaded Files</h2></div>
+                    <div id="certificates-files-list" class="divide-y divide-slate-200 dark:divide-slate-800"><div class="p-8 text-center text-slate-500 dark:text-slate-400"><i class="fa-regular fa-folder-open text-4xl mb-3 block"></i><p>No files found. Upload from Dashboard.</p></div></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="toasts" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script>
+        // ==========================================
+        // ⚠️ REPLACE WITH YOUR SUPABASE CREDENTIALS
+        // ==========================================
+        const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
+        const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+        // ==========================================
+
+        const { createClient } = supabase;
+        const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ==========================================
+        // DARK MODE
+        // ==========================================
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        } else {
+            document.documentElement.classList.remove('dark');
+            themeIcon.classList.remove('fa-sun');
+            themeIcon.classList.add('fa-moon');
+        }
+        themeToggle.addEventListener('click', () => {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            }
+        });
+
+        // ==========================================
+        // NAVIGATION
+        // ==========================================
+        const navButtons = document.querySelectorAll('.nav-btn');
+        const contents = {
+            dashboard: document.getElementById('dashboard-content'),
+            timetable: document.getElementById('timetable-content'),
+            students: document.getElementById('students-content'),
+            marks: document.getElementById('marks-content'),
+            certificates: document.getElementById('certificates-content')
+        };
+        function hideAllContents() {
+            Object.values(contents).forEach(content => { if (content) content.classList.add('hidden'); });
+        }
+        function showContent(contentId) {
+            hideAllContents();
+            if (contents[contentId]) {
+                contents[contentId].classList.remove('hidden');
+                if (contentId === 'timetable') loadSectionFiles('timetable', 'planning');
+                else if (contentId === 'students') loadSectionFiles('students', 'students');
+                else if (contentId === 'marks') loadSectionFiles('marks', 'notes');
+                else if (contentId === 'certificates') loadSectionFiles('certificates', 'certificates');
+            }
+        }
+        navButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                navButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.remove('bg-blue-50', 'dark:bg-blue-900/30', 'text-blue-600', 'dark:text-blue-400');
+                    btn.classList.add('text-slate-600', 'dark:text-slate-400');
+                });
+                button.classList.add('active');
+                button.classList.add('bg-blue-50', 'dark:bg-blue-900/30', 'text-blue-600', 'dark:text-blue-400');
+                button.classList.remove('text-slate-600', 'dark:text-slate-400');
+                const navType = button.getAttribute('data-nav');
+                showContent(navType);
+            });
+        });
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to log out?')) {
+                localStorage.clear();
+                window.location.href = 'login.html';
+            }
+        });
+
+        // ==========================================
+        // DASHBOARD UPLOAD FUNCTIONS
+        // ==========================================
+        function handleFileSelect(type) {
+            const file = document.getElementById(`${type}-file`).files[0];
+            if (!file) return;
+            document.getElementById(`${type}-file-name`).textContent = file.name;
+            document.getElementById(`${type}-file-info`).style.display = 'flex';
+            document.getElementById(`${type}-btn`).disabled = false;
+        }
+        function setupDragDrop(type) {
+            const zone = document.getElementById(`${type}-dropzone`);
+            if (!zone) return;
+            zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+            zone.addEventListener('dragleave', () => { zone.classList.remove('dragover'); });
+            zone.addEventListener('drop', e => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    document.getElementById(`${type}-file`).files = files;
+                    handleFileSelect(type);
+                }
+            });
+        }
+        async function uploadFile(type, bucket, contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
+            const file = document.getElementById(`${type}-file`).files[0];
+            if (!file) return;
+            let level, group, metadata;
+            if (type === 'planning') {
+                level = document.getElementById('planning-level').value;
+                group = document.getElementById('planning-group').value;
+                metadata = { level, group, uploaded_at: new Date().toISOString(), original_name: file.name };
+            } else if (type === 'notes') {
+                level = document.getElementById('notes-level').value;
+                group = document.getElementById('notes-group').value;
+                metadata = { level, group, uploaded_at: new Date().toISOString(), original_name: file.name };
+            } else if (type === 'certificates') {
+                level = document.getElementById('certificates-level').value;
+                group = document.getElementById('certificates-group').value;
+                metadata = { level, group, uploaded_at: new Date().toISOString(), original_name: file.name };
+            } else {
+                level = document.getElementById('students-level').value;
+                group = document.getElementById('students-group').value;
+                metadata = { level, group, uploaded_at: new Date().toISOString(), original_name: file.name };
+            }
+            const btn = document.getElementById(`${type}-btn`);
+            const progressDiv = document.getElementById(`${type}-progress`);
+            const fillDiv = document.getElementById(`${type}-fill`);
+            const progressText = document.getElementById(`${type}-progress-text`);
+            btn.disabled = true;
+            progressDiv.style.display = 'block';
+            fillDiv.style.width = '40%';
+            progressText.textContent = 'Uploading...';
+            const fileName = `${Date.now()}_${file.name}`;
+            const { error } = await sb.storage.from(bucket).upload(fileName, file, { contentType, upsert: true });
+            if (error) {
+                fillDiv.style.width = '100%';
+                progressText.textContent = 'Error';
+                showToast(error.message, 'error');
+                btn.disabled = false;
+            } else {
+                const metadataFileName = `metadata_${fileName}.json`;
+                await sb.storage.from(bucket).upload(metadataFileName, JSON.stringify(metadata), { contentType: 'application/json', upsert: true });
+                fillDiv.style.width = '100%';
+                progressText.textContent = 'Completed!';
+                showToast(`${file.name} uploaded successfully`, 'success');
+                setTimeout(() => resetUploadUI(type), 2000);
+            }
+        }
+        function resetUploadUI(type) {
+            document.getElementById(`${type}-progress`).style.display = 'none';
+            document.getElementById(`${type}-file-info`).style.display = 'none';
+            document.getElementById(`${type}-btn`).disabled = true;
+            document.getElementById(`${type}-file`).value = '';
+            document.getElementById(`${type}-fill`).style.width = '0%';
+        }
+
+        // ==========================================
+        // SECTION FILES LOADER (GENERIC)
+        // ==========================================
+        let sectionFilesCache = { timetable: [], students: [], marks: [], certificates: [] };
+        
+        async function loadSectionFiles(section, bucket) {
+            const container = document.getElementById(`${section}-files-list`);
+            if (!container) return;
+            container.innerHTML = '<div class="p-8 text-center text-slate-500 dark:text-slate-400"><i class="fa-solid fa-spinner fa-spin text-2xl mb-3 block"></i><p>Loading...</p></div>';
+            try {
+                const { data: files, error } = await sb.storage.from(bucket).list();
+                if (error) throw error;
+                const filesWithMeta = [];
+                for (const file of files || []) {
+                    if (file.name.startsWith('metadata_')) continue;
+                    const metaFileName = `metadata_${file.name}`;
+                    const { data: metaData } = await sb.storage.from(bucket).download(metaFileName);
+                    let metadata = {};
+                    if (metaData) {
+                        const text = await metaData.text();
+                        metadata = JSON.parse(text);
+                    }
+                    filesWithMeta.push({
+                        name: metadata.original_name || file.name,
+                        level: metadata.level || 'Unknown',
+                        group: metadata.group || 'Unknown',
+                        uploaded_at: metadata.uploaded_at || file.updated_at,
+                        size: file.metadata?.size || 0,
+                        storage_name: file.name
+                    });
+                }
+                sectionFilesCache[section] = filesWithMeta;
+                renderSectionFiles(section);
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<div class="p-8 text-center text-red-500 dark:text-red-400"><i class="fa-solid fa-circle-exclamation text-2xl mb-3 block"></i><p>Error loading files</p></div>';
+            }
+        }
+        
+        function renderSectionFiles(section) {
+            const container = document.getElementById(`${section}-files-list`);
+            const levelFilter = document.getElementById(`${section}-level-filter`)?.value || 'all';
+            const groupFilter = document.getElementById(`${section}-group-filter`)?.value || 'all';
+            let filtered = [...(sectionFilesCache[section] || [])];
+            if (levelFilter !== 'all') filtered = filtered.filter(f => f.level === levelFilter);
+            if (groupFilter !== 'all') filtered = filtered.filter(f => f.group === groupFilter);
+            filtered.sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
+            
+            const totalEl = document.getElementById(`${section}-total`);
+            const lastEl = document.getElementById(`${section}-last`);
+            const sizeEl = document.getElementById(`${section}-size`);
+            if (totalEl) totalEl.textContent = filtered.length;
+            if (filtered.length > 0 && lastEl) {
+                const lastFileName = filtered[0].name;
+                lastEl.textContent = lastFileName.length > 20 ? lastFileName.substring(0, 20) + '...' : lastFileName;
+            } else if (lastEl) { lastEl.textContent = '—'; }
+            if (sizeEl) {
+                const totalBytes = filtered.reduce((sum, f) => sum + (f.size || 0), 0);
+                sizeEl.textContent = (totalBytes / 1024).toFixed(1) + ' KB';
+            }
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-slate-500 dark:text-slate-400"><i class="fa-regular fa-folder-open text-4xl mb-3 block"></i><p>No files match the filter</p></div>';
+                return;
+            }
+            
+            const fileIcon = section === 'certificates' ? 'fa-regular fa-file-pdf text-red-600 dark:text-red-500' : 'fa-regular fa-file-excel text-green-600 dark:text-green-500';
+            
+            container.innerHTML = filtered.map(file => `
+                <div class="file-row px-6">
+                    <div class="file-name">
+                        <i class="${fileIcon}"></i>
+                        <span>${escapeHtml(file.name)}</span>
+                    </div>
+                    <div class="file-meta">
+                        <span class="date-gray"><i class="fa-regular fa-calendar ml-1"></i> ${formatDate(file.uploaded_at)}</span>
+                        <button class="delete-btn" onclick="deleteSectionFile('${section}', '${file.storage_name}')">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function deleteSectionFile(section, storageName) {
+            let bucket;
+            if (section === 'timetable') bucket = 'planning';
+            else if (section === 'students') bucket = 'students';
+            else if (section === 'marks') bucket = 'notes';
+            else if (section === 'certificates') bucket = 'certificates';
+            else return;
+            if (!confirm('Are you sure you want to delete this file?')) return;
+            try {
+                await sb.storage.from(bucket).remove([storageName]);
+                await sb.storage.from(bucket).remove([`metadata_${storageName}`]);
+                showToast('File deleted successfully', 'success');
+                await loadSectionFiles(section, bucket);
+            } catch (err) {
+                showToast('Error deleting file', 'error');
+            }
+        }
+        
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-CA');
+        }
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        function showToast(msg, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'success' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'} p-3 rounded-lg shadow-lg flex items-center gap-2 text-sm`;
+            toast.innerHTML = `<i class="fa-solid fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${msg}`;
+            document.getElementById('toasts').appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
+
+        // ==========================================
+        // INITIALIZE
+        // ==========================================
+        if (document.getElementById('planning-btn')) {
+            document.getElementById('planning-btn').addEventListener('click', () => uploadFile('planning', 'planning'));
+            document.getElementById('planning-file').addEventListener('change', () => handleFileSelect('planning'));
+            setupDragDrop('planning');
+        }
+        if (document.getElementById('notes-btn')) {
+            document.getElementById('notes-btn').addEventListener('click', () => uploadFile('notes', 'notes'));
+            document.getElementById('notes-file').addEventListener('change', () => handleFileSelect('notes'));
+            setupDragDrop('notes');
+        }
+        if (document.getElementById('certificates-btn')) {
+            document.getElementById('certificates-btn').addEventListener('click', () => uploadFile('certificates', 'certificates', 'application/pdf'));
+            document.getElementById('certificates-file').addEventListener('change', () => handleFileSelect('certificates'));
+            setupDragDrop('certificates');
+        }
+        if (document.getElementById('students-btn')) {
+            document.getElementById('students-btn').addEventListener('click', () => uploadFile('students', 'students'));
+            document.getElementById('students-file').addEventListener('change', () => handleFileSelect('students'));
+            setupDragDrop('students');
+        }
+        
+        const sections = [
+            { name: 'timetable', bucket: 'planning' },
+            { name: 'students', bucket: 'students' },
+            { name: 'marks', bucket: 'notes' },
+            { name: 'certificates', bucket: 'certificates' }
+        ];
+        sections.forEach(section => {
+            const refreshBtn = document.getElementById(`${section.name}-refresh`);
+            const levelFilter = document.getElementById(`${section.name}-level-filter`);
+            const groupFilter = document.getElementById(`${section.name}-group-filter`);
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => loadSectionFiles(section.name, section.bucket));
+                if (levelFilter) levelFilter.addEventListener('change', () => renderSectionFiles(section.name));
+                if (groupFilter) groupFilter.addEventListener('change', () => renderSectionFiles(section.name));
+            }
+        });
+        
+        window.deleteSectionFile = deleteSectionFile;
+    </script>
+</body>
+</html>
