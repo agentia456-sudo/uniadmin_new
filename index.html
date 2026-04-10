@@ -503,7 +503,7 @@
         }
 
         // ==========================================
-        // CERTIFICATE UPLOAD → Supabase → n8n
+        // CERTIFICATE UPLOAD → directement n8n (sans Supabase)
         // ==========================================
         async function uploadCertificate() {
             if (!urlStudentId) { showToast('No student_id — open this page from the email link', 'error'); return; }
@@ -518,30 +518,40 @@
             const fl  = document.getElementById('certificates-fill');
             const pt  = document.getElementById('certificates-progress-text');
 
-            btn.disabled = true; pd.style.display = 'block'; fl.style.width = '30%'; pt.textContent = 'Uploading PDF...';
+            btn.disabled = true; pd.style.display = 'block'; fl.style.width = '20%'; pt.textContent = 'Preparing PDF...';
 
-            const fileName = `cert_${urlStudentId}_${Date.now()}.pdf`;
-            const { error: upErr } = await sb.storage.from('certificates').upload(fileName, file, { contentType: 'application/pdf', upsert: true });
-            if (upErr) { fl.style.width='100%'; pt.textContent='Error'; showToast(upErr.message,'error'); btn.disabled=false; return; }
+            // Convertir PDF en Base64 directement dans le navigateur
+            const reader = new FileReader();
+            reader.onload = async () => {
+                try {
+                    const base64 = reader.result.split(',')[1];
+                    fl.style.width = '55%'; pt.textContent = 'Sending to student...';
 
-            const { data: { publicUrl } } = sb.storage.from('certificates').getPublicUrl(fileName);
-            fl.style.width = '65%'; pt.textContent = 'Sending to student...';
-
-            try {
-                const res = await fetch(N8N_CERT_WEBHOOK, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ student_id: urlStudentId, pdf_url: publicUrl })
-                });
-                if (!res.ok) throw new Error(`n8n responded with ${res.status}`);
-                fl.style.width = '100%'; pt.textContent = 'Sent ✅';
-                showToast(`Certificate sent to student ${urlStudentId} ✅`, 'success');
-                setTimeout(() => resetUploadUI('certificates'), 2500);
-            } catch (err) {
-                fl.style.width = '100%'; pt.textContent = 'Webhook error';
-                showToast('PDF uploaded but n8n failed: ' + err.message, 'error');
+                    const res = await fetch(N8N_CERT_WEBHOOK, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            student_id: urlStudentId,
+                            pdf_base64: base64,
+                            file_name: file.name
+                        })
+                    });
+                    if (!res.ok) throw new Error(`n8n responded with ${res.status}`);
+                    fl.style.width = '100%'; pt.textContent = 'Sent ✅';
+                    showToast(`Certificate sent to student ${urlStudentId} ✅`, 'success');
+                    setTimeout(() => resetUploadUI('certificates'), 2500);
+                } catch (err) {
+                    fl.style.width = '100%'; pt.textContent = 'Error';
+                    showToast('Failed to send: ' + err.message, 'error');
+                    btn.disabled = false;
+                }
+            };
+            reader.onerror = () => {
+                showToast('Failed to read PDF file', 'error');
                 btn.disabled = false;
-            }
+                pd.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
         }
 
         function resetUploadUI(type) {
