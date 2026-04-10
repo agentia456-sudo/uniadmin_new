@@ -123,12 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             console.log('✅ Authentication successful - User ID:', authData.user.id);
 
-            // Step 2: Verify admin role from profiles table
+            // Step 2: Verify admin from admins table
             const { data: adminProfile, error: adminError } = await supabaseClient
-                .from('profiles')
+                .from('admins')
                 .select('*')
                 .eq('id', authData.user.id)
-                .eq('role', 'admin')
+                .eq('is_active', true)
                 .single();
 
             if (adminError || !adminProfile) {
@@ -144,18 +144,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             console.log('✅ Admin verified:', {
                 admin_id: adminProfile.id,
-                name: `${adminProfile.first_name} ${adminProfile.last_name}`,
-                email: adminProfile.email,
-                role: adminProfile.role
+                email: adminProfile.email
             });
 
             // Step 3: Store admin data in localStorage
             const adminData = {
                 admin_id: adminProfile.id,
-                last_name: adminProfile.last_name,
-                first_name: adminProfile.first_name,
                 email: adminProfile.email,
-                role: adminProfile.role,
                 supabase_user_id: authData.user.id,
                 login_time: new Date().toISOString()
             };
