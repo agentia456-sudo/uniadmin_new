@@ -757,7 +757,8 @@
             progressDiv.style.display = 'block';
             fillDiv.style.width = '40%';
             progressText.textContent = 'Uploading...';
-            const fileName = `${Date.now()}_${file.name}`;
+            const ext = file.name.split('.').pop();
+            const fileName = `${level}_${group}.${ext}`;
             const { error } = await sb.storage.from(bucket).upload(fileName, file, { contentType, upsert: true });
             if (error) {
                 fillDiv.style.width = '100%';
@@ -765,8 +766,6 @@
                 showToast(error.message, 'error');
                 btn.disabled = false;
             } else {
-                const metadataFileName = `metadata_${fileName}.json`;
-                await sb.storage.from(bucket).upload(metadataFileName, JSON.stringify(metadata), { contentType: 'application/json', upsert: true });
                 fillDiv.style.width = '100%';
                 progressText.textContent = 'Completed!';
                 showToast(`${file.name} uploaded successfully`, 'success');
