@@ -731,6 +731,15 @@
         async function uploadFile(type, bucket, contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
             const file = document.getElementById(`${type}-file`).files[0];
             if (!file) return;
+            
+            // DEBUG SESSION
+            const { data: { session } } = await sb.auth.getSession();
+            console.log('SESSION:', session);
+            console.log('USER:', session?.user?.email);
+            if (!session) {
+                showToast('Not authenticated - please login again', 'error');
+                return;
+            }
             let level, group, metadata;
             if (type === 'planning') {
                 level = document.getElementById('planning-level').value;
